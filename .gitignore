@@ -37,3 +37,5 @@ prisma/*.db
 prisma/*.db-journal
 
 *.cache
+
+/generated/prisma
