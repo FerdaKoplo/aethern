@@ -13,10 +13,385 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Path {
+  Bard
+  Writer
+  Archivist
+}
+
+enum QuestStatus {
+  Active
+  Completed
+  Failed
+}
+
+enum RegionStatus {
+  Open
+  Closed
+  War
+  DarkAge
+}
+
+enum LegacyRole {
+  Author
+  Collaborator
+  Remixer
+}
+
+enum LegacyType {
+  Song
+  Story
+  Poem
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+
+  userPaths        UserPath[]
+  userRegions      UserRegion[]
+  userLegacies     UserLegacy[]
+  userFactions     UserFaction[]
+  influenceLogs    InfluenceLog[]
+  legacyVotes      LegacyVote[]
+  items            Item[]
+  userAchievements UserAchievement[]
+  tavernMessages   TavernMessage[]
+  legacyRemixes    LegacyRemix[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model Region {
+  id                 String       @id @default(uuid())
+  name               String
+  culture            String
+  controllingFaction String?
+  status             RegionStatus @default(Open)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  quests          Quest[]
+  legacies        Legacy[]
+  userRegions     UserRegion[]
+  taverns         Tavern[]
+  faction         Faction?        @relation(fields: [factionId], references: [id])
+  factionId       String?
+  worldEvents     WorldEvent[]
+  influenceLogs   InfluenceLog[]
+  cultures        Culture[]
+  regionHistories RegionHistory[]
+}
+
+model UserRegion {
+  id        String @id @default(uuid())
+  userId    String
+  regionId  String
+  influence Int    @default(0)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  region Region @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, regionId])
+}
+
+model Quest {
+  id              String      @id @default(uuid())
+  title           String
+  description     String
+  path            Path?
+  regionId        String
+  rewardInfluence Int         @default(0)
+  status          QuestStatus @default(Active)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  region       Region        @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  questRewards QuestReward[]
+}
+
+model Tavern {
+  id          String   @id @default(uuid())
+  name        String
+  regionId    String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  region         Region          @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  tavernMessages TavernMessage[]
+}
+
+model UserPath {
+  id        String   @id @default(uuid())
+  userId    String
+  path      Path
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, path])
+}
+
+model Legacy {
+  id         String     @id @default(uuid())
+  title      String
+  type       LegacyType
+  contentUrl String?
+  path       Path
+  regionId   String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  region        Region         @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  users         UserLegacy[]
+  influenceLogs InfluenceLog[]
+  legacyVotes   LegacyVote[]
+  questRewards  QuestReward[]
+  items         Item[]
+  remixSources  LegacyRemix[]  @relation("LegacyRemixSource")
+  remixResults  LegacyRemix[]  @relation("LegacyRemixResult")
+}
+
+model UserLegacy {
+  id        String     @id @default(uuid())
+  userId    String
+  legacyId  String
+  role      LegacyRole
+  influence Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  legacy Legacy @relation(fields: [legacyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, legacyId])
+}
+
+model Faction {
+  id        String   @id @default(uuid())
+  name      String
+  culture   String
+  influence Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       UserFaction[]
+  regions       Region[]
+  worldEvents   WorldEvent[]
+  influenceLogs InfluenceLog[]
+}
+
+model UserFaction {
+  id        String   @id @default(uuid())
+  userId    String
+  factionId String
+  role      String
+  joinedAt  DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faction Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, factionId])
+}
+
+model WorldEvent {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  regionId    String?
+  factionId   String?
+  type        String
+  startedAt   DateTime
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  region  Region?  @relation(fields: [regionId], references: [id])
+  faction Faction? @relation(fields: [factionId], references: [id])
+}
+
+model InfluenceLog {
+  id         String   @id @default(uuid())
+  userId     String
+  regionId   String?
+  legacyId   String?
+  factionId  String?
+  actionType String
+  influence  Int
+  createdAt  DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  region  Region?  @relation(fields: [regionId], references: [id])
+  legacy  Legacy?  @relation(fields: [legacyId], references: [id])
+  faction Faction? @relation(fields: [factionId], references: [id])
+}
+
+model LegacyVote {
+  id        String   @id @default(uuid())
+  userId    String
+  legacyId  String
+  type      String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  legacy Legacy @relation(fields: [legacyId], references: [id])
+
+  @@unique([userId, legacyId, type])
+}
+
+model QuestReward {
+  id        String   @id @default(uuid())
+  questId   String
+  type      String
+  amount    Int?
+  legacyId  String?
+  createdAt DateTime @default(now())
+
+  quest  Quest   @relation(fields: [questId], references: [id])
+  legacy Legacy? @relation(fields: [legacyId], references: [id])
+}
+
+model Item {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  type        String
+  ownerId     String?
+  legacyId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner  User?   @relation(fields: [ownerId], references: [id])
+  legacy Legacy? @relation(fields: [legacyId], references: [id])
+}
+
+model Culture {
+  id           String  @id @default(uuid())
+  name         String
+  description  String?
+  dominantPath Path?
+  influence    Int     @default(0)
+  regionId     String?
+
+  region    Region?  @relation(fields: [regionId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  type        String // e.g., InfluenceMilestone, LegacyCreator, RegionDominance
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  achievedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+}
+
+model RegionHistory {
+  id                 String       @id @default(uuid())
+  regionId           String
+  status             RegionStatus
+  controllingFaction String?
+  culture            String
+  snapshotAt         DateTime     @default(now())
+
+  region Region @relation(fields: [regionId], references: [id])
+}
+
+model TavernMessage {
+  id        String   @id @default(uuid())
+  tavernId  String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  tavern Tavern @relation(fields: [tavernId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model LegacyRemix {
+  id        String   @id @default(uuid())
+  sourceId  String
+  resultId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  source Legacy @relation("LegacyRemixSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  result Legacy @relation("LegacyRemixResult", fields: [resultId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, resultId])
+}
+
+model Season {
+  id          String   @id @default(uuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

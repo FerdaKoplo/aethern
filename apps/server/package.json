@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@aethern/shared": "workspace:*",
+    "@prisma/adapter-pg": "^7.2.0",
+    "better-auth": "^1.4.15",
     "elysia": "^1.4.22"
   }
 }
