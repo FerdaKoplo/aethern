@@ -1,4 +1,4 @@
-version: '3.9'
+version: "3.9"
 
 services:
   postgres:
@@ -18,7 +18,7 @@ services:
     restart: always
     env_file:
       - .env
-    ports:gg:
+    ports:
       - "8080:80"
     depends_on:
       - postgres
